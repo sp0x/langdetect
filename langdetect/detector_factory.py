@@ -117,6 +117,12 @@ class DetectorFactory(object):
 PROFILES_DIRECTORY = path.join(path.dirname(__file__), 'profiles')
 _factory = None
 
+def create_detector():
+    if _factory is None:
+        init_factory()
+    _detector = _factory.create()
+    return _detector
+
 def init_factory():
     global _factory
     if _factory is None:

@@ -67,6 +67,12 @@ class Detector(object):
         self.prior_map = None
         self.verbose = False
 
+    def reset(self):
+        self.text = ''
+        self.prior_map = None
+        self.langprob = None
+        
+
     def set_verbose(self):
         self.verbose = True
 

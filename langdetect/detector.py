@@ -186,7 +186,7 @@ class Detector(object):
         if self.prior_map is not None:
             return np.array(list(self.prior_map))
         else:
-            return np.repeat(1.0 / len(self.langlist), self.langlist)#[1.0 / len(self.langlist)] * len(self.langlist)
+            return np.repeat(1.0 / len(self.langlist), len(self.langlist))#[1.0 / len(self.langlist)] * len(self.langlist)
 
     def _extract_ngrams(self):
         '''Extract n-grams from target text.'''

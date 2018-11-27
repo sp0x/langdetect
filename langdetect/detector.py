@@ -8,6 +8,7 @@ from .lang_detect_exception import ErrorCode, LangDetectException
 from .language import Language
 from .utils.ngram import NGram
 from .utils.unicode_block import unicode_block
+import numpy as np
 
 
 class Detector(object):
@@ -155,24 +156,26 @@ class Detector(object):
         if not ngrams:
             raise LangDetectException(ErrorCode.CantDetectError, 'No features in text.')
 
-        self.langprob = [0.0] * len(self.langlist)
+        self.langprob = np.zeros(len(self.langlist))#[0.0] * len(self.langlist)
 
         self.random.seed(self.seed)
         for t in xrange(self.n_trial):
             prob = self._init_probability()
             alpha = self.alpha + self.random.gauss(0.0, 1.0) * self.ALPHA_WIDTH
-
             i = 0
-            while True:
+
+            while True:                
                 self._update_lang_prob(prob, self.random.choice(ngrams), alpha)
                 if i % 5 == 0:
-                    if self._normalize_prob(prob) > self.CONV_THRESHOLD or i >= self.ITERATION_LIMIT:
+                    prob = prob / np.sum(prob)
+                    if prob.max() > self.CONV_THRESHOLD or i >= self.ITERATION_LIMIT:
                         break
                     if self.verbose:
                         six.print_('>', self._sort_probability(prob))
                 i += 1
-            for j in xrange(len(self.langprob)):
-                self.langprob[j] += prob[j] / self.n_trial
+            self.langprob += prob / self.n_trial
+            # for j in xrange(len(self.langprob)):
+            #     self.langprob[j] += prob[j] / self.n_trial
             if self.verbose:
                 six.print_('==>', self._sort_probability(prob))
 
@@ -181,9 +184,9 @@ class Detector(object):
         If there is the specified prior map, use it as initial map.
         '''
         if self.prior_map is not None:
-            return list(self.prior_map)
+            return np.array(list(self.prior_map))
         else:
-            return [1.0 / len(self.langlist)] * len(self.langlist)
+            return np.repeat(1.0 / len(self.langlist), self.langlist)#[1.0 / len(self.langlist)] * len(self.langlist)
 
     def _extract_ngrams(self):
         '''Extract n-grams from target text.'''
@@ -209,13 +212,14 @@ class Detector(object):
         if word is None or word not in self.word_lang_prob_map:
             return False
 
-        lang_prob_map = self.word_lang_prob_map[word]
+        lang_prob_map = np.array(self.word_lang_prob_map[word])
         if self.verbose:
             six.print_('%s(%s): %s' % (word, self._unicode_encode(word), self._word_prob_to_string(lang_prob_map)))
 
         weight = alpha / self.BASE_FREQ
-        for i in xrange(len(prob)):
-            prob[i] *= weight + lang_prob_map[i]
+        prob *= weight + lang_prob_map
+        # for i in xrange(len(prob)):
+        #     prob[i] *= weight + lang_prob_map[i]
         return True
 
     def _word_prob_to_string(self, prob):
@@ -229,13 +233,14 @@ class Detector(object):
     def _normalize_prob(self, prob):
         '''Normalize probabilities and check convergence by the maximun probability.
         '''
-        maxp, sump = 0.0, sum(prob)
-        for i in xrange(len(prob)):
-            p = prob[i] / sump
-            if maxp < p:
-                maxp = p
-            prob[i] = p
-        return maxp
+        # maxp, sump = 0.0, np.sum(prob)
+        prob = prob/np.sum(prob)
+        # for i in xrange(len(prob)):
+        #     p = prob[i] / sump
+        #     if maxp < p:
+        #         maxp = p
+        #     prob[i] = p
+        return prob.max()
 
     def _sort_probability(self, prob):
         result = [Language(lang, p) for (lang, p) in zip(self.langlist, prob) if p > self.PROB_THRESHOLD]
